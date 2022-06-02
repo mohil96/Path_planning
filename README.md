@@ -22,9 +22,15 @@ The highway's waypoints loop around so the frenet s value, distance along the ro
 ## Basic Build Instructions
 
 1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
+2. If any changes are made to the code: `cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./path_planning`.
+
+## Run the simulator
+
+1. Open a new terminal window
+2. Enter the simulation folder: `cd term3_sim_linux`
+3. Run the simulator: `./term3_sim.x86_64`
 
 Here is the data provided from the Simulator to the C++ Program
 
@@ -69,9 +75,15 @@ the path has processed since last time.
 
 ## Tips
 
-A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
+A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file (spline.h) is really easy to use.
 
 ---
+
+## Finite State Machine
+
+An additional header (fsm.h) is added to use the finite state machine for managing the actions made for each condition.
+You can check the documentation here: https://github.com/eglimi/cppfsm
+
 
 ## Dependencies
 
