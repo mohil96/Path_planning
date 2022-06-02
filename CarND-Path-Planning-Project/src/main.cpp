@@ -7,7 +7,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
-//TODO:add headers
+//TODO:add headers (lines 11-12)
 #include "fsm.h"
 #include "spline.h"
 
@@ -16,7 +16,7 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
-//TODO:add constants
+//TODO:add constants(lines 20-32)
 const double MAX_VEL = 49.5;
 const double MAX_ACC = .224;
 const double MAX_DEC = .448;
@@ -31,7 +31,7 @@ const int RIGHT_LANE_MAX = 12;
 
 const int PROJECTION_IN_METERS = 30;
 
-//TODO: add states
+//TODO: add states(lines 35-45)
 enum States { Normal, Follow, ChangeLeft, ChangeRight };
 enum Triggers {  CarAhead, Clear };
 FSM::Fsm<States, States::Normal, Triggers> fsm;
@@ -91,7 +91,7 @@ int main() {
   bool car_right = false;
 
 
-  //TODO: State Machine Setup
+  //TODO: State Machine Setup(lines95-112)
   fsm.add_transitions({
                             //  from state ,to state  ,triggers        ,guard                    ,action
                             { States::Normal  ,States::ChangeLeft ,Triggers::CarAhead  ,[&]{return car_ahead && !car_left && lane > LEFT_LANE;}  ,[&]{lane--;} },
@@ -113,7 +113,7 @@ int main() {
 
   fsm.add_debug_fn(dbg_fsm);
 
-//TODO:add function arguments(car ahead,carleft,car right,lane)
+//TODO:add function arguments(car ahead,carleft,car right,lane) (lines 117-118)
   h.onMessage([&car_ahead, &car_left, &car_right, &ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy, &lane]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -159,7 +159,7 @@ int main() {
 
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
+           *   sequentially every .02 seconds (lines 164-337)
            */
             int prev_size = previous_path_x.size();
 
