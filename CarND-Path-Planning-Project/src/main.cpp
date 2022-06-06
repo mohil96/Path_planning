@@ -224,13 +224,13 @@ int main() {
             }
 
 
-            // 3. TRAJECTORY: Calculate trajectory for the car to follow
+            // 3. TRAJECTORY GENERATION: Create a smooth trajectory for the car to follow
 
             // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
             // later interpolate waypoints with spline and fill in more waypoints
 
-            vector<double> ptsx;
-            vector<double> ptsy;
+            vector<double> pts_for_spline_x;
+            vector<double> pts_for_spline_y;
 
             double ref_x = car_x;
             double ref_y = car_y;
@@ -238,15 +238,15 @@ int main() {
 
             // If previous size is almost empty, use car as starting reference
             if (prev_size < 2) {
-                // Use two points that make the path tangent to the car
+                // Use two points that make the path tangent to the car 
                 double prev_car_x = car_x - cos(car_yaw);
                 double prev_car_y = car_y - sin(car_yaw);
 
-                ptsx.push_back(prev_car_x);
-                ptsx.push_back(car_x);
+                pts_for_spline_x.push_back(prev_car_x);
+                pts_for_spline_x.push_back(car_x);
 
-                ptsy.push_back(prev_car_y);
-                ptsy.push_back(car_y);
+                pts_for_spline_y.push_back(prev_car_y);
+                pts_for_spline_y.push_back(car_y);
             }
             // Use previous path's points as starting reference
             else {
@@ -259,49 +259,49 @@ int main() {
                 ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
 
                 // Use two points that make the path tangent to the previous path's endpoint
-                ptsx.push_back(ref_x_prev);
-                ptsx.push_back(ref_x);
+                pts_for_spline_x.push_back(ref_x_prev);
+                pts_for_spline_x.push_back(ref_x);
 
-                ptsy.push_back(ref_y_prev);
-                ptsy.push_back(ref_y);
+                pts_for_spline_y.push_back(ref_y_prev);
+                pts_for_spline_y.push_back(ref_y);
             }
 
-            // In Frenet add evenly 30m spaced points ahead of the starting reference
+            // In Frenet add 3 waypoints evenly 30m spaced points ahead of the starting reference
             vector<double> next_wp0 = getXY(car_s+PROJECTION_IN_METERS, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp1 = getXY(car_s+(PROJECTION_IN_METERS*2), (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp2 = getXY(car_s+(PROJECTION_IN_METERS*3), (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-            ptsx.push_back(next_wp0[0]);
-            ptsx.push_back(next_wp1[0]);
-            ptsx.push_back(next_wp2[0]);
+            pts_for_spline_x.push_back(next_wp0[0]);
+            pts_for_spline_x.push_back(next_wp1[0]);
+            pts_for_spline_x.push_back(next_wp2[0]);
 
-            ptsy.push_back(next_wp0[1]);
-            ptsy.push_back(next_wp1[1]);
-            ptsy.push_back(next_wp2[1]);
+            pts_for_spline_y.push_back(next_wp0[1]);
+            pts_for_spline_y.push_back(next_wp1[1]);
+            pts_for_spline_y.push_back(next_wp2[1]);
 
-            for (int i=0; i<ptsx.size(); i++) {
-                // Shift car angle reference to 0 degrees
-                double shift_x = ptsx[i]-ref_x;
-                double shift_y = ptsy[i]-ref_y;
+            for (int i=0; i<pts_for_spline_x.size(); i++) {
+                // Shift car angle reference to 0 degrees in order to stay at the center of the lane
+                double shift_x = pts_for_spline_x[i]-ref_x;
+                double shift_y = pts_for_spline_y[i]-ref_y;
 
-                ptsx[i] = (shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
-                ptsy[i] = (shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
+                pts_for_spline_x[i] = (shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
+                pts_for_spline_y[i] = (shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
             }
 
             // Create a spline
             tk::spline s;
 
             // Set (x,y) points to the spline
-            s.set_points(ptsx, ptsy);
+            s.set_points(pts_for_spline_x, pts_for_spline_y);
 
             // Define the actual (x,y) points that will be used for the planner
-            //vector<double> next_x_vals;
-            //vector<double> next_y_vals;
+            vector<double> trajectory_x;
+            vector<double> trajectory_y;
 
             // Start with all of the previous path points from last time
             for (int i=0; i < previous_path_x.size(); i++) {
-                next_x_vals.push_back(previous_path_x[i]);
-                next_y_vals.push_back(previous_path_y[i]);
+                trajectory_x.push_back(previous_path_x[i]);
+                trajectory_y.push_back(previous_path_y[i]);
             }
 
             // Calculate how to break up spline points so that the desired refrence velocity is kept
@@ -336,15 +336,15 @@ int main() {
 
                 x_point += ref_x;
                 y_point += ref_y;
-
-                next_x_vals.push_back(x_point);
-                next_y_vals.push_back(y_point);
+                
+                trajectory_x.push_back(x_point);
+                trajectory_y.push_back(y_point);
             }
            
 
 
-          msgJson["next_x"] = next_x_vals;
-          msgJson["next_y"] = next_y_vals;
+          msgJson["next_x"] = trajectory_x;
+          msgJson["next_y"] = trajectory_y;
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
