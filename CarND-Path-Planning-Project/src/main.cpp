@@ -33,9 +33,9 @@ const int PROJECTION_IN_METERS = 30;
 
 //TODO: add states(lines 35-45)
 // Defining Fixed States for FSM
-enum States { Stay_Lane, Lane_Change_left, Lane_Change_right, Wait_Lane_Change_left, Wait_Lane_Change_right };
+enum States { Stay_Lane, Lane_Change_Left, Lane_Change_Right, Wait_Lane_Change_Left, Wait_Lane_Change_Right };
 enum Triggers {  CarAhead, Clear };
-FSM::Fsm<States, States::Normal, Triggers> fsm;
+FSM::Fsm<States, States::Stay_Lane, Triggers> fsm;
 const char * StateNames[] = { "Stay in Lane", "Prepare for Change to Left Lane", "Prepare for Change to Right Lane", "Change To Left Lane", "Change To Right Lane" };
 
 void dbg_fsm(States from_state, States to_state, Triggers trigger) {
@@ -90,31 +90,41 @@ int main() {
   bool car_ahead = false;
   bool car_left = false;
   bool car_right = false;
+  bool car_ahead_speed = false;
+  bool car_left_speed = false;
+  bool car_right_speed = false;
+  
 
 
   //TODO: State Machine Setup(lines95-112)
   fsm.add_transitions({
                             //  from state ,to state  ,triggers        ,guard                    ,action
-                            { States::Stay_Lane  ,States::Wait_Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && car_left && lane > LEFT_LANE && car_ahead_speed && car_left_speed;}  ,[&]{ref_vel -= MAX_DEC;} },
-                            { States::Wait_Lane_Change_Left  ,States::Wait_Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && car_left && lane > LEFT_LANE && car_ahead_speed && car_left_speed;}  ,[&]{ref_vel -= MAX_DEC;} },
-                            { States::Wait_Lane_Change_Left  ,States:: Lane_Change_left ,Triggers::CarAhead  ,[&]{return car_ahead && !car_left && lane > LEFT_LANE;}  ,[&]{lane--;} },
-                            { States::Wait_Lane_Change_Left ,States::Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && car_left && lane > LEFT_LANE && !car_left_speed;}  ,[&]{ lane--; } },
-                            { States::Lane_Change_Left ,States::Stay_Lane ,Triggers::Clear  ,[&]{return !car_ahead;}  ,[&]{if (ref_vel < MAX_VEL {ref_vel += MAX_ACC;})} },
+                            { States::Stay_Lane  ,States::Wait_Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && car_left && car_ahead_speed && car_left_speed && lane > LEFT_LANE;}  ,[&]{ref_vel -= MAX_DEC;} },
+                            { States::Wait_Lane_Change_Left  ,States::Wait_Lane_Change_Left ,Triggers::CarAhead  ,[&]{return true ;}  ,[&]{ref_vel -= MAX_DEC;} },
+                            { States::Wait_Lane_Change_Left  ,States:: Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && !car_left && lane > LEFT_LANE;}  ,[&]{lane--;} },
+                            { States::Wait_Lane_Change_Left  ,States:: Stay_Lane ,Triggers::Clear  ,[&]{return true;}  ,[&]{if (ref_vel < MAX_VEL) {ref_vel += MAX_ACC;}} },
+                            { States::Lane_Change_Left  ,States:: Stay_Lane ,Triggers::CarAhead  ,[&]{return true;}  ,[&]{ref_vel -= MAX_DEC;} },
+                            { States::Wait_Lane_Change_Left ,States::Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && car_left && !car_left_speed && lane > LEFT_LANE ;}  ,[&]{ lane--; } },
+                            { States::Lane_Change_Left ,States::Stay_Lane ,Triggers::Clear  ,[&]{return !car_ahead;}  ,[&]{if (ref_vel < MAX_VEL) {ref_vel += MAX_ACC;}} },
                             { States::Stay_Lane ,States::Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && !car_left && lane > LEFT_LANE;}  ,[&]{lane--;} },
 
-                            { States::Stay_Lane  ,States::Wait_Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && car_right && lane < RIGHT_LANE && car_ahead_speed && car_right_speed;}  ,[&]{ref_vel -= MAX_DEC;} },
-                            { States::Wait_Lane_Change_Right  ,States::Wait_Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && car_right && lane < RIGHT_LANE && car_ahead_speed && car_left_right;}  ,[&]{ref_vel -= MAX_DEC;} },
-                            { States::Wait_Lane_Change_Right  ,States:: Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && !car_right && lane < RIGHT_LANE;}  ,[&]{lane--;} },
-                            { States::Wait_Lane_Change_Right ,States::Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && car_right && lane < RIGHT_LANE && !car_left_right;}  ,[&]{ lane--; } },
-                            { States::Lane_Change_Right ,States::Stay_Lane ,Triggers::Clear  ,[&]{return !car_ahead;}  ,[&]{if (ref_vel < MAX_VEL {ref_vel += MAX_ACC;})} },
-                            { States::Stay_Lane ,States::Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && !car_right && lane < RIGHT_LANE;}  ,[&]{lane--;} },
-
+                            { States::Stay_Lane  ,States::Wait_Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && car_right && car_ahead_speed && car_right_speed && lane < RIGHT_LANE ;}  ,[&]{ref_vel -= MAX_DEC;} },
+                            { States::Wait_Lane_Change_Right  ,States::Wait_Lane_Change_Right ,Triggers::CarAhead  ,[&]{return true ;}  ,[&]{ref_vel -= MAX_DEC;} },
+                            { States::Wait_Lane_Change_Right  ,States:: Stay_Lane ,Triggers::Clear  ,[&]{return true;}  ,[&]{if (ref_vel < MAX_VEL) {ref_vel += MAX_ACC;}} },
+                            { States::Wait_Lane_Change_Right  ,States:: Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && !car_right && lane < RIGHT_LANE;}  ,[&]{lane++;} },
+                            { States::Wait_Lane_Change_Right ,States::Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && car_right && !car_right_speed && lane < RIGHT_LANE ;}  ,[&]{ lane++; } },
+                            { States::Lane_Change_Right ,States::Stay_Lane ,Triggers::Clear  ,[&]{return !car_ahead;}  ,[&]{if (ref_vel < MAX_VEL) {ref_vel += MAX_ACC;}} },
+                            { States::Lane_Change_Right ,States::Stay_Lane ,Triggers::CarAhead  ,[&]{return true;}  ,[&]{ref_vel -=1.5* MAX_DEC;} },
+                            { States::Stay_Lane ,States::Lane_Change_Right ,Triggers::CarAhead  ,[&]{return car_ahead && !car_right && lane < RIGHT_LANE;}  ,[&]{lane++;} },
+                            
+                            { States::Stay_Lane ,States::Stay_Lane ,Triggers::Clear  ,[&]{return !car_ahead;}  ,[&]{if (ref_vel < MAX_VEL) {ref_vel += MAX_ACC;}} }
+                            
                     });
 
   fsm.add_debug_fn(dbg_fsm);
 
 //TODO:add function arguments(car ahead,carleft,car right,lane) (lines 117-118)
-  h.onMessage([&car_ahead, &car_left, &car_right, &ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+  h.onMessage([&car_ahead, &car_ahead_speed, &car_left, &car_left_speed, &car_right, &car_right_speed, &ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy, &lane]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
@@ -154,8 +164,6 @@ int main() {
 
           json msgJson;
 
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
 
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
@@ -169,8 +177,11 @@ int main() {
 
             // 1. PREDICTION : Analysing other cars positions.
             car_ahead = false;
+            car_ahead_speed = false;
             car_left = false;
+            car_left_speed = false;
             car_right = false;
+            car_right_speed = false;
             
             // Sensor Fusion stores other Car's state: [id, x, y, vx, vy, s, d]
 
@@ -202,15 +213,15 @@ int main() {
                 if ( other_car_lane == lane ) {
                     // Other car is in the same lane
                     car_ahead |= check_car_s > car_s && check_car_s - car_s < PROJECTION_IN_METERS;
-                    car_ahead_speed |= abs(ref_vel - check_speed) < 4
+                    car_ahead_speed |= (ref_vel - check_speed) > 5;
                 } else if ( other_car_lane - lane == -1 ) {
                     // Other car is on the left lane
                     car_left |= car_s - PROJECTION_IN_METERS < check_car_s && car_s + PROJECTION_IN_METERS > check_car_s;
-                    car_left_speed |= abs(ref_vel - check_speed) < 4
+                    car_left_speed |= (ref_vel - check_speed) > 5;
                 } else if ( other_car_lane - lane == 1 ) {
                     // Other car is on the right lane
                     car_right |= car_s - PROJECTION_IN_METERS < check_car_s && car_s + PROJECTION_IN_METERS > check_car_s;
-                    car_right_speed |= abs(ref_vel - check_speed) < 4
+                    car_right_speed |= (ref_vel - check_speed) > 5;
                 }
             }
 
