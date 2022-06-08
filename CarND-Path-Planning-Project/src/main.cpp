@@ -7,7 +7,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
-//TODO:add headers (lines 11-12)
+//Headers used
 #include "fsm.h"
 #include "spline.h"
 
@@ -16,7 +16,7 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
-//TODO:add constants(lines 20-32)
+//define constants
 const double MAX_VEL = 49.5;       // MPH
 const double MAX_ACC = .224;
 const double MAX_DEC = .448;
@@ -25,13 +25,12 @@ const int MIDDLE_LANE = 1;
 const int RIGHT_LANE = 2;
 const int INVALID_LANE = -1;
 
-const int LEFT_LANE_MAX = 4;
-const int MIDDLE_LANE_MAX = 8;
-const int RIGHT_LANE_MAX = 12;
+const int LEFT_LANE_MAX_D = 4;
+const int MIDDLE_LANE_MAX_D = 8;
+const int RIGHT_LANE_MAX_D = 12;
 
-const int PROJECTION_IN_METERS = 30;
+const int PROJECTION_DISTANCE = 30;
 
-//TODO: add states(lines 35-45)
 // Defining Fixed States for FSM
 enum States { Stay_Lane, Lane_Change_Left, Lane_Change_Right, Wait_Lane_Change_Left, Wait_Lane_Change_Right };
 enum Triggers {  CarAhead, Clear };
@@ -96,7 +95,7 @@ int main() {
   
 
 
-  //TODO: State Machine Setup(lines95-112)
+  //Finite State Machine Setup
   fsm.add_transitions({
                             //  from state ,to state  ,triggers        ,guard                    ,action
                             { States::Stay_Lane  ,States::Wait_Lane_Change_Left ,Triggers::CarAhead  ,[&]{return car_ahead && car_left && car_ahead_speed && car_left_speed && lane > LEFT_LANE;}  ,[&]{ref_vel -= MAX_DEC;} },
@@ -123,7 +122,7 @@ int main() {
 
   fsm.add_debug_fn(dbg_fsm);
 
-//TODO:add function arguments(car ahead,carleft,car right,lane) (lines 117-118)
+//Receive message from simulator
   h.onMessage([&car_ahead, &car_ahead_speed, &car_left, &car_left_speed, &car_right, &car_right_speed, &ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy, &lane]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -166,8 +165,8 @@ int main() {
 
 
           /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds (lines 164-337)
+           * Define a path made up of (x,y) points that the car will visit
+           *   sequentially every .02 seconds
            */
             int prev_size = previous_path_x.size();
 
@@ -190,11 +189,11 @@ int main() {
                 int other_car_lane = INVALID_LANE;
 
                 // Determine the lane of the other car
-                if ( d > 0 && d < LEFT_LANE_MAX ) {
+                if ( d > 0 && d < LEFT_LANE_MAX_D ) {
                     other_car_lane = LEFT_LANE;
-                } else if ( d > LEFT_LANE_MAX && d < MIDDLE_LANE_MAX ) {
+                } else if ( d > LEFT_LANE_MAX_D && d < MIDDLE_LANE_MAX_D ) {
                     other_car_lane = MIDDLE_LANE;
-                } else if ( d > MIDDLE_LANE_MAX && d < RIGHT_LANE_MAX ) {
+                } else if ( d > MIDDLE_LANE_MAX_D && d < RIGHT_LANE_MAX_D ) {
                     other_car_lane = RIGHT_LANE;
                 }
                 if (other_car_lane == INVALID_LANE) {
@@ -212,15 +211,15 @@ int main() {
 
                 if ( other_car_lane == lane ) {
                     // Other car is in the same lane
-                    car_ahead |= check_car_s > car_s && check_car_s - car_s < PROJECTION_IN_METERS;
+                    car_ahead |= check_car_s > car_s && check_car_s - car_s < PROJECTION_DISTANCE;
                     car_ahead_speed |= (ref_vel - check_speed) > 5;
                 } else if ( other_car_lane - lane == -1 ) {
                     // Other car is on the left lane
-                    car_left |= car_s - PROJECTION_IN_METERS < check_car_s && car_s + PROJECTION_IN_METERS > check_car_s;
+                    car_left |= car_s - PROJECTION_DISTANCE < check_car_s && car_s + PROJECTION_DISTANCE > check_car_s;
                     car_left_speed |= (ref_vel - check_speed) > 5;
                 } else if ( other_car_lane - lane == 1 ) {
                     // Other car is on the right lane
-                    car_right |= car_s - PROJECTION_IN_METERS < check_car_s && car_s + PROJECTION_IN_METERS > check_car_s;
+                    car_right |= car_s - PROJECTION_DISTANCE < check_car_s && car_s + PROJECTION_DISTANCE > check_car_s;
                     car_right_speed |= (ref_vel - check_speed) > 5;
                 }
             }
@@ -234,7 +233,6 @@ int main() {
                 fsm.execute(Triggers::Clear);
             }
 
-
             // 3. TRAJECTORY GENERATION: Create a smooth trajectory for the car to follow
 
             // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
@@ -243,11 +241,11 @@ int main() {
             vector<double> pts_for_spline_x;
             vector<double> pts_for_spline_y;
 
-            double ref_x = car_x;
-            double ref_y = car_y;
+            double reference_x = car_x;
+            double reference_y = car_y;
             double ref_yaw = deg2rad(car_yaw);
 
-            // If previous size is almost empty, use car as starting reference
+            // Use car as starting reference when simulation just begins 
             if (prev_size < 2) {
                 // Use two points that make the path tangent to the car 
                 double prev_car_x = car_x - cos(car_yaw);
@@ -259,28 +257,29 @@ int main() {
                 pts_for_spline_y.push_back(prev_car_y);
                 pts_for_spline_y.push_back(car_y);
             }
-            // Use previous path's points as starting reference
+            // Use previous path's points as starting reference once there is enough path that is generated
             else {
                 // Redefine reference state as previous path endpoint
-                ref_x = previous_path_x[prev_size-1];
-                ref_y = previous_path_y[prev_size-1];
-
-                double ref_x_prev = previous_path_x[prev_size-2];
-                double ref_y_prev = previous_path_y[prev_size-2];
-                ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
+                reference_x = previous_path_x[prev_size-1];
+                reference_y = previous_path_y[prev_size-1];
 
                 // Use two points that make the path tangent to the previous path's endpoint
-                pts_for_spline_x.push_back(ref_x_prev);
-                pts_for_spline_x.push_back(ref_x);
+                double reference_x_previous = previous_path_x[prev_size-2];
+                double reference_y_previous = previous_path_y[prev_size-2];
+                ref_yaw = atan2(reference_y-reference_y_previous,reference_x-reference_x_previous);
 
-                pts_for_spline_y.push_back(ref_y_prev);
-                pts_for_spline_y.push_back(ref_y);
+                
+                pts_for_spline_x.push_back(reference_x_previous);
+                pts_for_spline_x.push_back(reference_x);
+
+                pts_for_spline_y.push_back(reference_y_previous);
+                pts_for_spline_y.push_back(reference_y);
             }
 
-            // In Frenet add 3 waypoints evenly 30m spaced points ahead of the starting reference
-            vector<double> next_wp0 = getXY(car_s+PROJECTION_IN_METERS, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s+(PROJECTION_IN_METERS*2), (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp2 = getXY(car_s+(PROJECTION_IN_METERS*3), (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            // add 3 waypoints evenly spaced at 30m ahead of the starting reference converting from Frenet Frame
+            vector<double> next_wp0 = getXY(car_s+PROJECTION_DISTANCE, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+(PROJECTION_DISTANCE*2), (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp2 = getXY(car_s+(PROJECTION_DISTANCE*3), (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
             pts_for_spline_x.push_back(next_wp0[0]);
             pts_for_spline_x.push_back(next_wp1[0]);
@@ -292,8 +291,8 @@ int main() {
 
             for (int i=0; i<pts_for_spline_x.size(); i++) {
                 // Shift car angle reference to 0 degrees in order to stay at the center of the lane
-                double shift_x = pts_for_spline_x[i]-ref_x;
-                double shift_y = pts_for_spline_y[i]-ref_y;
+                double shift_x = pts_for_spline_x[i]-reference_x;
+                double shift_y = pts_for_spline_y[i]-reference_y;
 
                 pts_for_spline_x[i] = (shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
                 pts_for_spline_y[i] = (shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
@@ -315,15 +314,15 @@ int main() {
                 trajectory_y.push_back(previous_path_y[i]);
             }
 
-            // Calculate how to break up spline points so that the desired refrence velocity is kept
-            double target_x = 30.0;
-            double target_y = s(target_x);
-            double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y));
+            // Calculate how to break up spline points so that the desired reference velocity is kept
+            double target_wp_x = 30.0;
+            double target_wp_y = s(target_wp_x);
+            double target_distance = sqrt((target_wp_x)*(target_wp_x)+(target_wp_y)*(target_wp_y));
 
-            double x_add_on = 0;
+            double x_initial_spline = 0;
 
             // Fill up the rest of the path planner after filling it with previous points
-            // Always 50 points will be output
+            // 50 points per second will be output
             for (int i=0; i <= 50-previous_path_x.size(); i++) {
 
                 if ( ref_vel > MAX_VEL ) {
@@ -332,24 +331,24 @@ int main() {
                     ref_vel = MAX_ACC;
                 }
 
-                double N = (target_dist/(0.02*ref_vel/2.24));
-                double x_point = x_add_on+(target_x)/N;
-                double y_point = s(x_point);
+                double N = (target_distance/(0.02*ref_vel/2.24));
+                double x_point_trajectory = x_initial_spline+(target_wp_x)/N;
+                double y_point_trajectory = s(x_point_trajectory);
 
-                x_add_on = x_point;
+                x_initial_spline = x_point_trajectory;
 
-                double x_ref = x_point;
-                double y_ref = y_point;
+                double x_ref = x_point_trajectory;
+                double y_ref = y_point_trajectory;
 
                 //Rotate back to normal after rotating earlier
-                x_point = (x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw));
-                y_point = (x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw));
+                x_point_trajectory = (x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw));
+                y_point_trajectory = (x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw));
 
-                x_point += ref_x;
-                y_point += ref_y;
+                x_point_trajectory += reference_x;
+                y_point_trajectory += reference_y;
                 
-                trajectory_x.push_back(x_point);
-                trajectory_y.push_back(y_point);
+                trajectory_x.push_back(x_point_trajectory);
+                trajectory_y.push_back(y_point_trajectory);
             }
            
 
